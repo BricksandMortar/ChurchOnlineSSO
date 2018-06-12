@@ -394,7 +394,7 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                 var rockContext = new RockContext();
 
                 var group = new GroupService( rockContext ).Get( checkinGroupValue.Split( '|' )[1].AsGuid() );
-                var location = new CampusService( rockContext ).Get( checkinLocationValue.AsGuid() ).Location;
+                var campus = new CampusService( rockContext ).Get( checkinLocationValue.AsGuid() );
 
                 var scheduleGuids = checkinScheduleValues.Split( ',' ).AsGuidList();
                 var schedule = new ScheduleService( rockContext )
@@ -403,17 +403,17 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                     .Where( s => s.IsCheckInActive && s.IsCheckInEnabled )
                     .FirstOrDefault();
 
-                if ( group != null && location != null && schedule != null )
+                if ( group != null && campus != null && schedule != null )
                 {
                     var attendanceService = new AttendanceService( rockContext );
                     var attendance = new Attendance();
-
                     attendance.PersonAliasId = person.PrimaryAliasId ?? person.PrimaryAlias.Id;
-                    attendance.LocationId = location.Id;
-                    attendance.GroupId = group.Id;
-                    attendance.DidAttend = true;
+                    attendance.CampusId = campus.Id;
                     attendance.ScheduleId = schedule.Id;
-                    attendance.StartDateTime = schedule.EffectiveStartDate ?? RockDateTime.Now;
+                    attendance.GroupId = group.Id;
+                    attendance.StartDateTime = RockDateTime.Now;
+                    attendance.DidAttend = true;
+                    attendance.EndDateTime = null;
                     attendanceService.Add( attendance );
                     rockContext.SaveChanges();
                 }
@@ -468,8 +468,7 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                 Context.ApplicationInstance.CompleteRequest();
                 return;
             }
-
-
+            throw new Exception( "Error building authentication code for Church Online" );
         }
 
         static byte[] encryptStringToBytes_AES( byte[] textBytes, byte[] Key, byte[] IV )
