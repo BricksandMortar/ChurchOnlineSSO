@@ -425,7 +425,7 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
         private MultiPass BuildMultipass( Person person )
         {
             var multiPass = new MultiPass();
-            multiPass.Email = person.Email;
+            multiPass.Email = person.Email.ToLowerInvariant();
             multiPass.FirstName = person.FirstName;
             multiPass.LastName = person.LastName;
             multiPass.Nickname = !string.IsNullOrWhiteSpace( person.NickName ) ? person.NickName : person.FirstName;
