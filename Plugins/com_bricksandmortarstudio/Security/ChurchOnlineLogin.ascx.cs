@@ -370,17 +370,20 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                 url = ResolveRockUrl( "~/ConfirmAccount" );
             }
 
-            var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( this.RockPage, this.CurrentPerson );
-            mergeFields.Add( "ConfirmAccountUrl", RootPath + url.TrimStart( new char[] { '/' } ) );
-
-            var personDictionary = userLogin.Person.ToLiquid() as Dictionary<string, object>;
-            mergeFields.Add( "Person", personDictionary );
+            var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( RockPage, CurrentPerson );
+            mergeFields.Add( "ConfirmAccountUrl", RootPath + url.TrimStart( '/' ) );
+            mergeFields.Add( "Person", userLogin.Person );
             mergeFields.Add( "User", userLogin );
 
             var recipients = new List<RecipientData>();
             recipients.Add( new RecipientData( userLogin.Person.Email, mergeFields ) );
 
-            Email.Send( GetAttributeValue( "ConfirmAccountTemplate" ).AsGuid(), recipients, ResolveRockUrl( "~/" ), ResolveRockUrl( "~~/" ), false );
+            var message = new RockEmailMessage( GetAttributeValue( "ConfirmAccountTemplate" ).AsGuid() );
+            message.SetRecipients( recipients );
+            message.AppRoot = ResolveRockUrl( "~/" );
+            message.ThemeRoot = ResolveRockUrl( "~~/" );
+            message.CreateCommunicationRecord = false;
+            message.Send();
         }
 
         public void PostAttendance( Person person )
@@ -400,21 +403,13 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                 var schedule = new ScheduleService( rockContext )
                     .GetByGuids( scheduleGuids )
                     .ToList()
-                    .Where( s => s.IsCheckInActive && s.IsCheckInEnabled )
+                    .Where( s => s.WasCheckInActive(RockDateTime.Now) && s.IsCheckInEnabled )
                     .FirstOrDefault();
 
                 if ( group != null && campus != null && schedule != null )
                 {
                     var attendanceService = new AttendanceService( rockContext );
-                    var attendance = new Attendance();
-                    attendance.PersonAliasId = person.PrimaryAliasId ?? person.PrimaryAlias.Id;
-                    attendance.CampusId = campus.Id;
-                    attendance.ScheduleId = schedule.Id;
-                    attendance.GroupId = group.Id;
-                    attendance.StartDateTime = RockDateTime.Now;
-                    attendance.DidAttend = true;
-                    attendance.EndDateTime = null;
-                    attendanceService.Add( attendance );
+                    attendanceService.AddOrUpdate( person.PrimaryAliasId ?? person.PrimaryAlias.Id, RockDateTime.Now, group.Id, null, schedule.Id, campus.Id );
                     rockContext.SaveChanges();
                 }
 
@@ -443,7 +438,6 @@ Sorry, your account has been locked.  Please contact our office at {{ 'Global' |
                 var sha256 = SHA256.Create();
                 byte[] keyByte = Encoding.UTF8.GetBytes( ssoKey );
                 byte[] hashKey = sha256.ComputeHash( keyByte );
-                // TODO Rotate
                 string initVector = "OpenSSL for Ruby"; 
 
                 byte[] initVectorBytes = Encoding.UTF8.GetBytes( initVector );
